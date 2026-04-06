@@ -48,6 +48,9 @@
 #define MQTT_TOPIC_HUM        MQTT_BASE "/humidity"       // primaire
 #define MQTT_TOPIC_PRESSURE   MQTT_BASE "/pressure"
 #define MQTT_TOPIC_GAS        MQTT_BASE "/gas_resistance_kohm"
+#define MQTT_TOPIC_IAQ        MQTT_BASE "/iaq"
+#define MQTT_TOPIC_IAQ_ACCURACY  MQTT_BASE "/iaq_accuracy"
+#define MQTT_TOPIC_ECO2       MQTT_BASE "/eco2"
 
 // PMS5003 — concentration massique atmosphérique (AE, terrain extérieur/intérieur)
 #define MQTT_TOPIC_PM1_AE     MQTT_BASE "/pm1_ae"
@@ -60,3 +63,5 @@
 
 // LD2410C
 #define MQTT_TOPIC_PRESENCE   MQTT_BASE "/presence"
+
+#define MQTT_TOPIC_HEALTH_SCORE MQTT_BASE "/health_score"

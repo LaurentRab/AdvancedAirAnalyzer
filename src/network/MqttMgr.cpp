@@ -73,10 +73,13 @@ void MqttMgr::publish(const MeasurementData& m) {
 
     // BME688 — T/H primaires + pression + gaz
     if (m.bmeValid) {
-        _pubFloat(MQTT_TOPIC_TEMP,     m.temperature);   // référence ambiant
+        _pubFloat(MQTT_TOPIC_TEMP,     m.temperature);
         _pubFloat(MQTT_TOPIC_HUM,      m.humidity);
         _pubFloat(MQTT_TOPIC_PRESSURE, m.pressure);
-        _pubFloat(MQTT_TOPIC_GAS,      m.gasResistance / 1000.0f);
+        _pubFloat(MQTT_TOPIC_GAS,      m.gasResistance / 1000.0f); // kΩ
+        _pubFloat(MQTT_TOPIC_IAQ,      m.iaq);            // Index IAQ
+        _pubInt  (MQTT_TOPIC_IAQ_ACCURACY, m.iaqAccuracy);   // Accuracy
+        _pubFloat(MQTT_TOPIC_ECO2,     m.co2Equiv);       // eCO2 Bosch
     }
 
     // PMS5003 — AE (terrain) + SP (référence)
@@ -92,6 +95,9 @@ void MqttMgr::publish(const MeasurementData& m) {
     // LD2410C
     _pubStr(MQTT_TOPIC_PRESENCE, m.presence ? "ON" : "OFF");
 
+    // Score de santé global (Confinement)
+    _pubFloat(MQTT_TOPIC_HEALTH_SCORE, m.healthScore, 0); // Index de confinement calculé (0-100%)
+
     // Système
     _pubInt(MQTT_TOPIC_RSSI, m.rssi);
     _pubULong(MQTT_TOPIC_UPTIME, m.uptime);
@@ -104,4 +110,12 @@ void MqttMgr::publishPresence(bool presence) {
     const char* payload = presence ? "ON" : "OFF";
     _client.publish(MQTT_TOPIC_PRESENCE, payload, true);
     Serial.printf("[MQTT] Presence : %s\n", payload);
+}
+
+void MqttMgr::publishGasResistance(float resistance) {
+    if (!_client.connected()) return;
+    char buf[16];
+    dtostrf(resistance/1000.0f, 0, 1, buf); // Convertir en kΩ pour la publication
+    _client.publish(MQTT_TOPIC_GAS, buf, true);
+    Serial.printf("[MQTT] Gas Resistance : %s kΩ\n", buf);
 }

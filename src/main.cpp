@@ -37,6 +37,7 @@ static unsigned long pmsWakeMs          = 0;
 static bool          pmsAwake           = false;
 static bool          lastPresenceState  = false;
 static unsigned long lastPresenceCheckMs= 0;
+static float         lastGasResistance  = 0.0f;
 
 static void measureAndPublish();
 
@@ -85,13 +86,19 @@ void loop() {
 
     const unsigned long now = millis();
 
-    // --- AJOUT : Gestion de la présence en temps réel ---
+    // --- AJOUT : Gestion de la présence en temps réel et de la résistance du gaz --
     if (now - lastPresenceCheckMs >= 500) { // Check toutes les 500ms
         bool currentPresence = sensorLD2410C.read();
+        float currentGasResistance = sensorBME688.getGasResistance();
         if (currentPresence != lastPresenceState) {
             // On publie immédiatement le changement d'état
             mqttMgr.publishPresence(currentPresence); 
             lastPresenceState = currentPresence;
+        }
+        if (currentGasResistance != lastGasResistance) {
+            // On publie immédiatement le changement de résistance
+            mqttMgr.publishGasResistance(currentGasResistance);
+            lastGasResistance = currentGasResistance;
         }
         lastPresenceCheckMs = now;
     }
@@ -129,6 +136,7 @@ static void measureAndPublish() {
     else
         Serial.println(F("  SCD40   donnees invalides"));
 
+    // Publication de l'IAQ réel et de sa précision    
     if (bme.valid)
         Serial.printf("  BME688  Temp: %.1f C | Hum: %.1f %% | Pres: %.1f hPa | Gaz: %.1f kohm\n",
                       bme.temperature, bme.humidity, bme.pressure, bme.gasResistance / 1000.0f);
@@ -154,6 +162,24 @@ static void measureAndPublish() {
     m.pressure      = bme.pressure;
     m.gasResistance = bme.gasResistance;
     m.bmeValid      = bme.valid;
+    m.iaq           = bme.iaq;
+    m.iaqAccuracy   = bme.iaqAccuracy;
+    m.co2Equiv      = bme.co2Equiv;
+    m.breathVoc     = bme.breathVoc;
+    m.healthScore   = 0.0f; // Initialisé à 0, sera calculé ci-dessous
+
+    // --- CALCUL DE L'INDEX DE CONFINEMENT (Santé Globale) ---
+    // On normalise les deux sources de pollution sur une échelle de 0 à 1
+    float co2Penalty = (m.co2 - 400.0f) / 1600.0f; // 400ppm=0, 2000ppm=1
+    float iaqPenalty = m.iaq / 500.0f;             // 0=0, 500=1
+    
+    // Le score final prend la pire des deux pénalités
+    float maxPenalty = max(co2Penalty, iaqPenalty);
+    if (maxPenalty < 0.0f) maxPenalty = 0.0f;
+    if (maxPenalty > 1.0f) maxPenalty = 1.0f;
+
+    m.healthScore = (1.0f - maxPenalty) * 100.0f; // Score 0-100%
+
 
     m.pm1_ae  = pms.pm1_ae;
     m.pm25_ae = pms.pm25_ae;

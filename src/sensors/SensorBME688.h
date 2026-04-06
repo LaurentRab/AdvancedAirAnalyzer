@@ -19,6 +19,7 @@ public:
     bool begin(uint8_t addr = 0x76);
     void update();
     Data getData() { return _lastData; }
+    float getGasResistance() { return _lastData.gasResistance; }
 
 private:
     Bsec2 _iaqSensor;
