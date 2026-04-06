@@ -1,0 +1,50 @@
+graph TD
+    subgraph "Source d'Énergie"
+        USB[USB-C 5V]
+        VCC[Rail 5V / VBUS]
+        GND[Rail Masse / GND]
+        USB --> VCC
+        USB --> GND
+    end
+
+    subgraph "Filtrage & Lissage"
+        C1[3x 100µF Parallèle] --- VCC
+        C1 --- GND
+        C2[1x 100nF] --- ESP_3V3
+        C2 --- GND
+    end
+
+    subgraph "ESP32-C3 Super Mini"
+        ESP_5V[Pin 5V]
+        ESP_3V3[Pin 3V3]
+        GND_ESP[Pin GND]
+        I2C[I2C: SDA:8 / SCL:9]
+        UART[UART: RX:20]
+        GPIO10[GPIO 10]
+    end
+
+    VCC --> ESP_5V
+    GND --> GND_ESP
+
+    subgraph "Bus de Données I2C"
+        SCD[SCD40 CO2]
+        BME[BME688 Env]
+        I2C --- SCD
+        I2C --- BME
+        SCD --- ESP_3V3
+        BME --- ESP_3V3
+    end
+
+    subgraph "Flux Série & Digital"
+        PMS[PMS 5003]
+        RAD[LD2410C Radar]
+        PMS --"TXD"--> UART
+        RAD --"OUT"--> GPIO10
+        PMS --- VCC
+        RAD --- VCC
+        PMS --"SET"--> ESP_3V3
+    end
+
+    style C1 fill:#f96,stroke:#333
+    style C2 fill:#ffeb3b,stroke:#333
+    style ESP32-C3 fill:#2196f3,color:#fff

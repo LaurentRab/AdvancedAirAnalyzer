@@ -161,6 +161,6 @@ static void measureAndPublish() {
 
     m.presence = presence;
     m.rssi     = rssi;
-    m.uptime   = (millis() / 1000UL);
+    m.uptime   = (millis() / 60000UL); // minutes
     mqttMgr.publish(m);
 }
