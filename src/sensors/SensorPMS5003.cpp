@@ -23,7 +23,14 @@ bool SensorPMS5003::begin(uint8_t rxPin, uint8_t txPin, uint8_t setPin) {
 void SensorPMS5003::wakeUp() {
     pinMode(_setPin, OUTPUT);
     digitalWrite(_setPin, HIGH);
-    delay(100);            // stabilisation hardware après SET HIGH
+
+    // 1. Délai allongé (500ms) pour laisser l'électronique du capteur démarrer proprement
+    delay(500);
+
+    // 2. Forcer le réveil logiciel (annule tout état de veille fantôme d'un ancien firmware)
+    _pms->wakeUp();
+    delay(50);
+
     _pms->passiveMode();   // le capteur redémarre en mode actif — repasser en passif
     _flushSerial();
     Serial.printf("[PMS5003] Reveil — SET pin %d HIGH, mode passif\n", _setPin);
@@ -59,6 +66,15 @@ SensorPMS5003::Data SensorPMS5003::read(uint32_t timeoutMs) {
         // .read(raw) renvoie true dès qu'une trame complète (32 octets) 
         // est décodée avec succès depuis le flux série
         if (_pms->read(raw)) {
+            // Sanity check : un échantillon avec toutes les valeurs de particules
+            // à zéro est très improbable dans un environnement normal et indique
+            // souvent que le capteur n'est pas encore stabilisé.
+            if (raw.PM_AE_UG_1_0 == 0 && raw.PM_AE_UG_2_5 == 0 && raw.PM_AE_UG_10_0 == 0) {
+                Serial.println(F("[PMS5003] Echantillon invalide (valeurs nulles) ignoré."));
+                // En mode passif, une seule trame est envoyée par requête.
+                // On ne peut pas attendre une autre trame, donc on abandonne cette lecture.
+                return d; // d.valid est toujours false.
+            }
             d.pm1_ae  = raw.PM_AE_UG_1_0;
             d.pm25_ae = raw.PM_AE_UG_2_5;
             d.pm10_ae = raw.PM_AE_UG_10_0;

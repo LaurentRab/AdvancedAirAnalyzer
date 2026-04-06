@@ -32,7 +32,7 @@ Le filtrage par condensateurs est **obligatoire** pour absorber les pics de cour
 | **BME688** | SDA / SCL | **GPIO 8 / GPIO 9** | 3.3V | Bus I2C (0x76) |
 | **PMS 5003** | VCC / GND | **5V / GND** | 5V | Puissance |
 | | TXD | **GPIO 20** | 3.3V | Flux série (RX0) |
-| | SET | **3.3V** | 3.3V | Activation Laser |
+| | SET | **GPIO 5** | 3.3V | Activation Laser |
 | **LD2410C** | VCC / GND | **5V / GND** | 5V | Puissance |
 | | OUT | **GPIO 10** | 3.3V | Signal Présence |
 
@@ -44,8 +44,8 @@ Le filtrage par condensateurs est **obligatoire** pour absorber les pics de cour
 graph TD
     subgraph "Source d'Énergie"
         USB[USB-C 5V]
-        VCC[Rail 5V / VBUS]
         GND[Rail Masse / GND]
+        VCC[Rail 5V / VBUS]
         USB --> VCC
         USB --> GND
     end
@@ -61,6 +61,7 @@ graph TD
         ESP_5V[Pin 5V]
         ESP_3V3[Pin 3V3]
         GND_ESP[Pin GND]
+        GPIO5[GPIO 5]
         I2C[I2C: SDA:8 / SCL:9]
         UART[UART RX:20]
         GPIO10[GPIO 10]
@@ -85,9 +86,8 @@ graph TD
         RAD --"OUT"--> GPIO10
         PMS --- VCC
         RAD --- VCC
-        PMS --"SET"--> ESP_3V3
+        PMS --"SET"--> GPIO5
     end
 
     style C1 fill:#f96,stroke:#333
     style C2 fill:#ffeb3b,stroke:#333
-    style ESP32-C3 fill:#2196f3,color:#fff
