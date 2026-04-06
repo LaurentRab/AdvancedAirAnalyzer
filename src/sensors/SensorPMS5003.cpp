@@ -3,20 +3,23 @@
 
 bool SensorPMS5003::begin(uint8_t rxPin, uint8_t txPin, uint8_t setPin) {
     _setPin = setPin;
+    
+    // 1. Initialiser la broche SET immédiatement pour réveiller le hardware
+    pinMode(_setPin, OUTPUT);
+    digitalWrite(_setPin, HIGH); 
+    delay(200); // Laisser l'IC du PMS démarrer
+
+    // 2. Initialiser l'UART
     _serial.begin(9600, SERIAL_8N1, rxPin, txPin);
     _pms = new PMS(_serial);
 
-    // Mise en veille hardware propre :
-    // On envoie d'abord passiveMode() pour stopper tout flux actif éventuel
-    // (cas d'un redémarrage à chaud sans power-cycle du PMS5003),
-    // puis on coupe via la broche SET.
+    // 3. Forcer le mode passif et purger
     _pms->passiveMode();
-    delay(50);
+    delay(100);
     _flushSerial();
-    pinMode(_setPin, OUTPUT);
-    digitalWrite(_setPin, LOW);
 
-    Serial.printf("[PMS5003] OK — SET pin=%d LOW (veille hardware)\n", _setPin);
+    // 4. Maintenant seulement, mettre en veille si nécessaire
+    // Ou mieux : le laisser tourner pour le premier test
     return true;
 }
 

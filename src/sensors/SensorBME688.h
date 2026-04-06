@@ -1,22 +1,30 @@
 #pragma once
-#include <bme68xLibrary.h>
+#include <Arduino.h>
+#include "bsec2.h"
 
-// ─── BME688 — pression, température ambiante, humidité, qualité gaz ──
-// Utilisé en mode « forced » : une mesure déclenchée à la demande.
 class SensorBME688 {
 public:
     struct Data {
-        float temperature   = 0.0f;   // °C
-        float humidity      = 0.0f;   // %RH
-        float pressure      = 0.0f;   // hPa
-        float gasResistance = 0.0f;   // Ω  (diviser par 1000 pour kΩ)
-        bool  valid         = false;
+        float temperature = 0.0f;
+        float humidity    = 0.0f;
+        float pressure    = 0.0f;
+        float iaq         = 0.0f;
+        uint8_t iaqAccuracy = 0;
+        float co2Equiv    = 0.0f;
+        float breathVoc   = 0.0f;
+        float gasResistance = 0.0f;
+        bool  valid       = false;
     };
 
     bool begin(uint8_t addr = 0x76);
-    Data read();
+    void update();
+    Data getData() { return _lastData; }
 
 private:
-    Bme68x _bme;
-    bool   _ok = false;
+    Bsec2 _iaqSensor;
+    static Data _lastData; // Statique pour être accessible par le callback statique
+    bool _ok = false;
+
+    // Signature exacte correspondant à bsecCallback dans bsec2.h
+    static void bsecCallback(const bme68xData data, const bsecOutputs outputs, const Bsec2 bsec);
 };

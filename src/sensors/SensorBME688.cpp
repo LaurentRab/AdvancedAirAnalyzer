@@ -1,51 +1,70 @@
 #include "SensorBME688.h"
-#include <Arduino.h>
+
+// Initialisation du membre statique
+SensorBME688::Data SensorBME688::_lastData;
 
 bool SensorBME688::begin(uint8_t addr) {
-    _bme.begin(addr, Wire);
-    if (_bme.checkStatus() == BME68X_ERROR) {
-        Serial.printf("[BME688] Init error: %s\n", _bme.statusString());
+    // bsec2.h définit begin(uint8_t i2cAddr, TwoWire &i2c, ...)
+    if (!_iaqSensor.begin(addr, Wire)) {
         return false;
     }
-    _bme.setTPH();                  // oversampling par défaut (T×2, P×16, H×1)
-    _bme.setHeaterProf(300, 100);   // chauffage gaz : 300 °C / 100 ms
+
+    // Utilise les types bsecSensor (alias de bsec_virtual_sensor_t)
+    bsecSensor sensorList[] = {
+        BSEC_OUTPUT_IAQ,
+        BSEC_OUTPUT_CO2_EQUIVALENT,
+        BSEC_OUTPUT_BREATH_VOC_EQUIVALENT,
+        BSEC_OUTPUT_RAW_PRESSURE,
+        BSEC_OUTPUT_RAW_GAS,
+        BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE,
+        BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY
+    };
+
+    // updateSubscription est défini dans bsec2.cpp
+    if (!_iaqSensor.updateSubscription(sensorList, 7, BSEC_SAMPLE_RATE_ULP)) {
+        return false;
+    }
+
+    // attachCallback attend un bsecCallback
+    _iaqSensor.attachCallback(SensorBME688::bsecCallback);
+
     _ok = true;
-    Serial.println(F("[BME688] OK"));
     return true;
 }
 
-SensorBME688::Data SensorBME688::read() {
-    Data d;
-    if (!_ok) return d;
+void SensorBME688::update() {
+    if (_ok) _iaqSensor.run(); // run() traite les données et appelle le callback
+}
 
-    // Déclenche une mesure unique (forced mode)
-    _bme.setOpMode(BME68X_FORCED_MODE);
+void SensorBME688::bsecCallback(const bme68xData data, const bsecOutputs outputs, const Bsec2 bsec) {
+    if (!outputs.nOutputs) return;
 
-    // Pattern correct pour cette bibliothèque (v1.1.x) :
-    //   fetchData() interroge le registre du capteur et remplit le cache interne.
-    //   getData()   lit seulement ce cache — inutile sans fetchData() préalable.
-    //
-    // Polling jusqu'à ce que fetchData() retourne nFields > 0 (mesure prête),
-    // ou timeout 500 ms pour ne pas bloquer le watchdog.
-    uint8_t nFields = 0;
-    const unsigned long deadline = millis() + 500UL;
-    while (nFields == 0 && millis() < deadline) {
-        delay(10);
-        nFields = _bme.fetchData();
+    _lastData.valid = true;
+    for (uint8_t i = 0; i < outputs.nOutputs; i++) {
+        const bsecData& out = outputs.output[i];
+        switch (out.sensor_id) {
+            case BSEC_OUTPUT_IAQ:
+                _lastData.iaq = out.signal;
+                _lastData.iaqAccuracy = out.accuracy;
+                break;
+            case BSEC_OUTPUT_RAW_PRESSURE:
+                _lastData.pressure = out.signal; // Le bsec2.cpp convertit déjà Pa en hPa
+                break;
+            case BSEC_OUTPUT_RAW_GAS:
+                _lastData.gasResistance = out.signal;
+                break;
+            case BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE:
+                _lastData.temperature = out.signal;
+                break;
+            case BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY:
+                _lastData.humidity = out.signal;
+                break;
+            case BSEC_OUTPUT_CO2_EQUIVALENT:
+                _lastData.co2Equiv = out.signal;
+                break;
+            case BSEC_OUTPUT_BREATH_VOC_EQUIVALENT:
+                _lastData.breathVoc = out.signal;
+                break;
+        }
     }
-
-    if (nFields == 0) {
-        Serial.println(F("[BME688] Timeout — aucune donnee recue"));
-        return d;
-    }
-
-    bme68xData raw;
-    _bme.getData(raw);
-
-    d.temperature   = raw.temperature;
-    d.humidity      = raw.humidity;
-    d.pressure      = raw.pressure / 100.0f;   // Pa → hPa
-    d.gasResistance = raw.gas_resistance;
-    d.valid         = true;
-    return d;
 }

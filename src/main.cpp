@@ -55,7 +55,7 @@ void setup() {
     sensorSCD40.begin();
     sensorBME688.begin();
 
-    // PMS5003 : rxPin, txPin, setPin (GPIO 7 = controle hardware)
+    // PMS5003 : rxPin, txPin, setPin (GPIO 5 = controle hardware)
     sensorPMS5003.begin(PMS_RX, PMS_TX, PIN_PMS_SET);
 
     // LD2410C : sortie logique OUT
@@ -75,6 +75,9 @@ void setup() {
 // ---------------------------------------------------------
 void loop() {
     esp_task_wdt_reset();
+
+    // Crucial : BSEC2 doit "tourner" en permanence
+    sensorBME688.update();
 
     wifiMgr.maintain();
     otaMgr.handle();
@@ -114,7 +117,8 @@ static void measureAndPublish() {
     Serial.println(F("\n--- Mesure ---"));
 
     SensorSCD40::Data   scd = sensorSCD40.read();
-    SensorBME688::Data  bme = sensorBME688.read();
+    // Correction : on récupère la dernière donnée calculée par BSEC2
+    SensorBME688::Data  bme = sensorBME688.getData();
     SensorPMS5003::Data pms = sensorPMS5003.read(3000); // timeout 3 s (mode passif : 1 requête → 1 trame ~200 ms, marge x15)
     const bool presence     = sensorLD2410C.read();
     const int  rssi         = wifiMgr.rssi();
@@ -161,6 +165,6 @@ static void measureAndPublish() {
 
     m.presence = presence;
     m.rssi     = rssi;
-    m.uptime   = (millis() / 1000UL);
+    m.uptime   = (millis() / 60000UL);
     mqttMgr.publish(m);
 }

@@ -14,8 +14,8 @@
 #define PIN_PMS_SET     5     // PMS5003 : SET LOW = veille hardware (ventilateur arrêté)
 
 // ─── Timings ──────────────────────────────────────────────
-#define MEASURE_INTERVAL_MS   (15UL * 60UL * 1000UL)   // 15 min
-#define PMS_WARMUP_MS         30000UL                    // 30 s stabilisation ventilateur
+#define MEASURE_INTERVAL_MS   (5UL * 60UL * 1000UL)   // 5 min
+#define PMS_WARMUP_MS         30000UL                 // 30 s stabilisation ventilateur
 
 // Offset d'auto-échauffement du SCD40 (°C).
 // Le SCD40 lit plus chaud que l'ambiant réel à cause de son électronique.
