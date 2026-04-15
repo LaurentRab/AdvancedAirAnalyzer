@@ -5,36 +5,31 @@
 // ─── Structure agrégée de toutes les mesures ─────────────────────────────
 // Découple la couche réseau des modules capteurs.
 struct MeasurementData {
-    // SCD40 — CO2 uniquement (T/H publiées à titre de diagnostic)
+    // SCD40
     uint16_t co2      = 0;
-    float    tempSCD  = 0.0f;   // °C — biaisé par auto-échauffement, usage diagnostic
-    float    humSCD   = 0.0f;   // %RH — idem
+    float    tempSCD  = 0.0f;
+    float    humSCD   = 0.0f;
     bool     scdValid = false;
 
-    // BME688 — T/H de référence + pression + résistance gaz
-    float temperature   = 0.0f;   // °C — primaire (pas d'auto-échauffement)
-    float humidity      = 0.0f;   // %RH — primaire
-    float pressure      = 0.0f;   // hPa
-    float gasResistance = 0.0f;   // Ω (÷1000 pour kΩ)
+    // BME688 (BSEC2)
+    float temperature   = 0.0f;
+    float humidity      = 0.0f;
+    float pressure      = 0.0f;
+    float gasResistance = 0.0f;
+    float iaq           = 0.0f;    // IAQ Bosch (0-500)
+    int   iaqAccuracy   = 0;      // 0-3
+    float co2Equiv      = 0.0f;    // eCO2 Bosch
+    float breathVoc     = 0.0f;
     bool  bmeValid      = false;
 
-    // PMS5003 — particules fines (µg/m³)
-    // AE = Atmospheric Environment (valeurs terrain, pour IAQ)
-    uint16_t pm1_ae  = 0;
-    uint16_t pm25_ae = 0;
-    uint16_t pm10_ae = 0;
-    // SP = Standard Particles CF=1 (valeurs de référence, pour normes)
-    uint16_t pm1_sp  = 0;
-    uint16_t pm25_sp = 0;
-    uint16_t pm10_sp = 0;
+    // PMS5003 + LD2410C + Système
+    uint16_t pm1_ae = 0, pm25_ae = 0, pm10_ae = 0;
+    uint16_t pm1_sp = 0, pm25_sp = 0, pm10_sp = 0;
     bool     pmsValid = false;
-
-    // LD2410C — présence (sortie logique OUT)
-    bool presence = false;
-
-    // Système
-    int rssi = 0;
-    unsigned long uptime = 0; // secondes
+    bool     presence = false;
+    float    healthScore = 0.0f;   // Index de confinement calculé (0-100%)
+    int      rssi = 0;
+    unsigned long uptime = 0;
 };
 
 // ─── Gestionnaire MQTT ────────────────────────────────────────────────────
@@ -45,6 +40,7 @@ public:
     void maintain();
     void publish(const MeasurementData& m);
     void publishPresence(bool presence); // Ajout pour le temps réel
+    void publishGasResistance(float resistance); // Ajout pour le temps réel
     bool isConnected();
 
 private:
