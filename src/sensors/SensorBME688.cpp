@@ -32,8 +32,50 @@ bool SensorBME688::begin(uint8_t addr) {
     return true;
 }
 
+bool SensorBME688::loadState() {
+    Preferences prefs;
+    prefs.begin(NVS_NAMESPACE, /*readOnly=*/true);
+    uint8_t state[BSEC_MAX_STATE_BLOB_SIZE];
+    const size_t len = prefs.getBytes(NVS_KEY, state, sizeof(state));
+    prefs.end();
+
+    if (len == 0) {
+        Serial.println(F("BSEC : aucun etat sauvegarde, calibration a froid."));
+        return false;
+    }
+    if (!_iaqSensor.setState(state)) {
+        Serial.println(F("BSEC : echec restauration etat NVS."));
+        return false;
+    }
+    Serial.println(F("BSEC : etat restaure depuis NVS."));
+    return true;
+}
+
+void SensorBME688::saveStateIfReady() {
+    if (_lastData.iaqAccuracy < 3) return;
+
+    const unsigned long now = millis();
+    if (now - _lastSaveMs < SAVE_INTERVAL_MS) return;
+
+    uint8_t state[BSEC_MAX_STATE_BLOB_SIZE];
+    if (!_iaqSensor.getState(state)) {
+        Serial.println(F("BSEC : echec lecture etat pour sauvegarde."));
+        return;
+    }
+
+    Preferences prefs;
+    prefs.begin(NVS_NAMESPACE, /*readOnly=*/false);
+    prefs.putBytes(NVS_KEY, state, sizeof(state));
+    prefs.end();
+
+    _lastSaveMs = now;
+    Serial.println(F("BSEC : etat sauvegarde en NVS."));
+}
+
 void SensorBME688::update() {
-    if (_ok) _iaqSensor.run(); // run() traite les données et appelle le callback
+    if (!_ok) return;
+    _iaqSensor.run(); // run() traite les données et appelle le callback
+    saveStateIfReady();
 }
 
 void SensorBME688::bsecCallback(const bme68xData data, const bsecOutputs outputs, const Bsec2 bsec) {

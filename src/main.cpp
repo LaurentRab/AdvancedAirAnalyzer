@@ -55,6 +55,7 @@ void setup() {
     Wire.begin(I2C_SDA, I2C_SCL);
     sensorSCD40.begin();
     sensorBME688.begin();
+    sensorBME688.loadState();
 
     // PMS5003 : rxPin, txPin, setPin (GPIO 5 = controle hardware)
     sensorPMS5003.begin(PMS_RX, PMS_TX, PIN_PMS_SET);
